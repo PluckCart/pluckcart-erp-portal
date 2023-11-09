@@ -125,6 +125,8 @@ bench get-app git@github.com:PluckCart/pluckcart-erpnext.git
 ### Install all the apps on our site
 bench --site [site-name] install-app erpnext
 
+### Set Default Site
+bench use [site-name]
 
 ### Initialize Server
 

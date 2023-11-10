@@ -57,7 +57,7 @@
    "fieldtype": "Link",
    "has_next_condition": 0,
    "is_table_field": 0,
-   "label": "Default Unit of Measure",
+   "label": "Default Unit of Measures",
    "parent_field": "",
    "position": "Right",
    "title": "Default Unit of Measurement"
@@ -73,7 +73,19 @@
    "parent_field": "",
    "position": "Left",
    "title": "Standard Selling Rate"
-  }
+  },
+  {
+    "description": "Country of Origin",
+    "field": "",
+    "fieldname": "country_of_origin",
+    "fieldtype": "Data",
+    "has_next_condition": 0,
+    "is_table_field": 0,
+    "label": "Country of Origin",
+    "parent_field": "",
+    "position": "Left",
+    "title": "Country of Origin"
+   }
  ],
  "title": "Item General"
 }

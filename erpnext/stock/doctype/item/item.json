@@ -179,11 +179,21 @@
    "fieldname": "stock_uom",
    "fieldtype": "Link",
    "ignore_user_permissions": 1,
-   "label": "Default Unit of Measure",
+   "label": "Default Unit of Measures",
    "oldfieldname": "stock_uom",
    "oldfieldtype": "Link",
    "options": "UOM",
    "reqd": 1
+  },
+  {
+    "fieldname": "stock_uom",
+    "fieldtype": "Data",
+    "ignore_user_permissions": 1,
+    "label": "Country of Origin",
+    "oldfieldname": "item_coo",
+    "oldfieldtype": "Data",
+    "options": "UOM",
+    "reqd": 1
   },
   {
    "fieldname": "column_break0",

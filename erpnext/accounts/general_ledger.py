@@ -13,9 +13,13 @@ import erpnext
 from erpnext.accounts.doctype.accounting_dimension.accounting_dimension import (
 	get_accounting_dimensions,
 )
+from erpnext.accounts.doctype.accounting_dimension_filter.accounting_dimension_filter import (
+	get_dimension_filter_map,
+)
 from erpnext.accounts.doctype.accounting_period.accounting_period import ClosedAccountingPeriod
 from erpnext.accounts.doctype.budget.budget import validate_expense_against_budget
 from erpnext.accounts.utils import create_payment_ledger_entry
+from erpnext.exceptions import InvalidAccountDimensionError, MandatoryAccountDimensionError
 
 
 def make_gl_entries(
@@ -354,6 +358,7 @@ def save_entries(gl_map, adv_adj, update_outstanding, from_repost=False):
 
 	process_debit_credit_difference(gl_map)
 
+	dimension_filter_map = get_dimension_filter_map()
 	if gl_map:
 		check_freezing_date(gl_map[0]["posting_date"], adv_adj)
 		is_opening = any(d.get("is_opening") == "Yes" for d in gl_map)
@@ -361,6 +366,7 @@ def save_entries(gl_map, adv_adj, update_outstanding, from_repost=False):
 			validate_against_pcv(is_opening, gl_map[0]["posting_date"], gl_map[0]["company"])
 
 	for entry in gl_map:
+		validate_allowed_dimensions(entry, dimension_filter_map)
 		make_entry(entry, adv_adj, update_outstanding, from_repost)
 
 
@@ -556,7 +562,12 @@ def get_round_off_account_and_cost_center(
 
 
 def make_reverse_gl_entries(
-	gl_entries=None, voucher_type=None, voucher_no=None, adv_adj=False, update_outstanding="Yes"
+	gl_entries=None,
+	voucher_type=None,
+	voucher_no=None,
+	adv_adj=False,
+	update_outstanding="Yes",
+	partial_cancel=False,
 ):
 	"""
 	Get original gl entries of the voucher
@@ -576,14 +587,19 @@ def make_reverse_gl_entries(
 
 	if gl_entries:
 		create_payment_ledger_entry(
-			gl_entries, cancel=1, adv_adj=adv_adj, update_outstanding=update_outstanding
+			gl_entries,
+			cancel=1,
+			adv_adj=adv_adj,
+			update_outstanding=update_outstanding,
+			partial_cancel=partial_cancel,
 		)
 		validate_accounting_period(gl_entries)
 		check_freezing_date(gl_entries[0]["posting_date"], adv_adj)
 
 		is_opening = any(d.get("is_opening") == "Yes" for d in gl_entries)
 		validate_against_pcv(is_opening, gl_entries[0]["posting_date"], gl_entries[0]["company"])
-		set_as_cancel(gl_entries[0]["voucher_type"], gl_entries[0]["voucher_no"])
+		if not partial_cancel:
+			set_as_cancel(gl_entries[0]["voucher_type"], gl_entries[0]["voucher_no"])
 
 		for entry in gl_entries:
 			new_gle = copy.deepcopy(entry)
@@ -662,3 +678,39 @@ def set_as_cancel(voucher_type, voucher_no):
 		where voucher_type=%s and voucher_no=%s and is_cancelled = 0""",
 		(now(), frappe.session.user, voucher_type, voucher_no),
 	)
+
+
+def validate_allowed_dimensions(gl_entry, dimension_filter_map):
+	for key, value in dimension_filter_map.items():
+		dimension = key[0]
+		account = key[1]
+
+		if gl_entry.account == account:
+			if value["is_mandatory"] and not gl_entry.get(dimension):
+				frappe.throw(
+					_("{0} is mandatory for account {1}").format(
+						frappe.bold(frappe.unscrub(dimension)), frappe.bold(gl_entry.account)
+					),
+					MandatoryAccountDimensionError,
+				)
+
+			if value["allow_or_restrict"] == "Allow":
+				if gl_entry.get(dimension) and gl_entry.get(dimension) not in value["allowed_dimensions"]:
+					frappe.throw(
+						_("Invalid value {0} for {1} against account {2}").format(
+							frappe.bold(gl_entry.get(dimension)),
+							frappe.bold(frappe.unscrub(dimension)),
+							frappe.bold(gl_entry.account),
+						),
+						InvalidAccountDimensionError,
+					)
+			else:
+				if gl_entry.get(dimension) and gl_entry.get(dimension) in value["allowed_dimensions"]:
+					frappe.throw(
+						_("Invalid value {0} for {1} against account {2}").format(
+							frappe.bold(gl_entry.get(dimension)),
+							frappe.bold(frappe.unscrub(dimension)),
+							frappe.bold(gl_entry.account),
+						),
+						InvalidAccountDimensionError,
+					)
